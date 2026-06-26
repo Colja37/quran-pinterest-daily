@@ -2,7 +2,7 @@ name: Daily Quran Post
 
 on:
   schedule:
-   - cron: '30 15 * * *'
+   - cron: '35 16 * * *'
   workflow_dispatch:
 
 jobs:
