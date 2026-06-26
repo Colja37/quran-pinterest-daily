@@ -33,102 +33,83 @@ def fetch_random_ayah():
         "ref": f"الآية ({ayah_num})"
     }
 
-def get_premium_beige_background(width, height, chosen_template):
-    """توليد خلفية بيج بملمس ورقي فخم (Texture) ثابت، أو دمج طبيعة سينمائية هادئة"""
-    if chosen_template == "nature":
-        # دمج الطبيعة مع الحفاظ على روح التصميم
-        prompt = "serene misty mountains lake sunrise, soft aesthetic light, warm cinematic landscape background, 8k"
-        url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt) + f"?width={width}&height={height}&seed={random.randint(1, 5000)}"
-        try:
-            response = requests.get(url, timeout=40)
-            img = Image.open(io.BytesIO(response.content)).convert("RGBA")
-            img = img.resize((width, height), Image.Resampling.LANCZOS)
-            # تعتيم ناعم جداً ليبرز النص
-            overlay = Image.new("RGBA", img.size, (0, 0, 0, 40))
-            return Image.alpha_composite(img, overlay), (255, 255, 255, 255), (0, 0, 0, 200)
-        except:
-            pass
-
-    # القالب الأساسي الثابت: ورق بيج/كريمي دافئ ومحبب ومريح جداً للعين
+def get_beige_texture(width, height):
+    """توليد خلفية بيج ثابتة بملمس ورقي ناعم وفخم يطابق تماماً صورة قرآن_3.jpg"""
     prompt = "premium warm beige paper texture, blank vintage parchment background, smooth rustic grainy paper, high resolution"
-    url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt) + f"?width={width}&height={height}&seed={random.randint(1, 1000)}"
+    url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt) + f"?width={width}&height={height}&seed=777"
     try:
         response = requests.get(url, timeout=30)
         img = Image.open(io.BytesIO(response.content)).convert("RGBA")
-        return img.resize((width, height), Image.Resampling.LANCZOS), (45, 40, 35, 255), (180, 170, 150, 40)
+        return img.resize((width, height), Image.Resampling.LANCZOS)
     except:
-        # لون بيج سادة دافئ جداً كخطة بديلة طارئة
-        img = Image.new("RGBA", (width, height), (245, 238, 221, 255))
-        return img, (45, 40, 35, 255), (180, 170, 150, 40)
+        # لون بيج دافئ جداً كخيار احتياطي في حال انقطاع السيرفر
+        return Image.new("RGBA", (width, height), (232, 224, 207, 255))
 
 def generate_image(ayah_data):
-    # أبعاد العرض المثالية والمطابقة للصور (1200x675)
+    # أبعاد العرض المثالية المتناسقة (1200x675)
     width, height = 1200, 675
     
-    # اختيار القالب (التثبيت على البيج الفاخر، مع بقاء الطبيعة كخيار متجدد)
-    chosen_template = random.choice(["beige_1", "beige_2", "nature"])
-    img, text_color, shadow_color = get_premium_beige_background(width, height, chosen_template)
-    
+    # جلب الخلفية البيج الورقية (تم إلغاء الطبيعة تماماً)
+    img = get_beige_texture(width, height)
     draw = ImageDraw.Draw(img)
 
     # تحميل الخطوط العربية الأصيلة
     try:
-        font_surah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 40)
-        font_ayah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 54)
-        font_ref = ImageFont.truetype("fonts/Amiri-Regular.ttf", 34)
+        font_surah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 38)
+        font_ayah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 52)
+        font_ref = ImageFont.truetype("fonts/Amiri-Regular.ttf", 32)
     except:
         font_surah = font_ayah = font_ref = ImageFont.load_default()
 
-    # 🌟 1. رسم إطار عنوان السورة المزخرف (الاحترافي) 🌟
-    # قمنا ببرمجة إطار إسلامي كلاسيكي ناعم ومفتوح من الأطراف ليحاكي المخطوطات الحقيقية
-    frame_w, frame_h = 520, 85
-    fx1 = (width - frame_w) // 2
-    fy1 = 65
-    fx2 = fx1 + frame_w
-    fy2 = fy1 + frame_h
+    # الألوان المعتمدة بناءً على المخطوطة الأصلية في صورة قرآن_3.jpg
+    dark_brown = (65, 43, 21, 255)       # لون الخط البني الداكن للآية والإطارات
+    banner_fill = (222, 197, 161, 255)    # لون حشوة برواز السورة (بيج مصفر/ذهبي خافت)
+    inner_line_color = (138, 99, 59, 255) # لون الخط الداخلي الرفيع للبرواز
+
+    # 📏 1. بناء برواز السورة الفخم المتناسق مع صورة قرآن_3.jpg 📏
+    panel_w, panel_h = 650, 80
+    px1 = (width - panel_w) // 2
+    py1 = 65
+    px2 = px1 + panel_w
+    py2 = py1 + panel_h
     
-    # رسم خطين متوازيين فخمين مع حواف زخرفية جانبية صغيرة بالرسم بدلاً من المستطيل المصمت المزعج
-    draw.line([(fx1, fy1), (fx2, fy1)], fill=text_color, width=2)
-    draw.line([(fx1, fy2), (fx2, fy2)], fill=text_color, width=2)
-    # حواف جانبية كلاسيكية
-    draw.line([(fx1, fy1), (fx1 + 15, fy1 + frame_h//2)], fill=text_color, width=2)
-    draw.line([(fx1 + 15, fy1 + frame_h//2), (fx1, fy2)], fill=text_color, width=2)
-    draw.line([(fx2, fy1), (fx2 - 15, fy1 + frame_h//2)], fill=text_color, width=2)
-    draw.line([(fx2 - 15, fy1 + frame_h//2), (fx2, fy2)], fill=text_color, width=2)
+    # رسم المستطيل الخارجي لبرواز السورة مع حواف دائرية خفيفة
+    draw.rounded_rectangle([px1, py1, px2, py2], radius=4, fill=banner_fill, outline=dark_brown, width=3)
+    
+    # رسم خط برواز داخلي رفيع ليعطي تأثير المصحف العتيق
+    padding = 6
+    draw.rounded_rectangle([px1 + padding, py1 + padding, px2 - padding, py2 - padding], radius=2, outline=inner_line_color, width=1)
 
-    # كتابة اسم السورة داخل الخطوط المزخرفة في المنتصف تماماً
-    draw.text((width // 2, fy1 + (frame_h // 2) - 2), ayah_data["surah"], font=font_surah, fill=text_color, anchor="mm")
+    # كتابة اسم السورة في منتصف البرواز تماماً باللون الداكن الفاخر
+    draw.text((width // 2, py1 + (panel_h // 2) - 2), ayah_data["surah"], font=font_surah, fill=dark_brown, anchor="mm")
 
-    # 2. تقسيم الآية الكريمة لسطور متناسقة
+    # 2. تقسيم الآية الكريمة لسطور متناسقة مع أبعاد العرض
     words = ayah_data["text"].split()
     lines = []
     current = []
     for word in words:
         current.append(word)
         bbox = draw.textbbox((0, 0), " ".join(current), font=font_ayah)
-        if bbox[2] - bbox[0] > width - 240:
+        if bbox[2] - bbox[0] > width - 260:
             current.pop()
             lines.append(" ".join(current))
             current = [word]
     if current:
         lines.append(" ".join(current))
 
-    # 3. حساب الموقع العمودي الذكي أسفل عنوان السورة
+    # 3. حساب الموقع العمودي المتمركز بدقة أسفل برواز السورة
     line_spacing = 90
     total_text_height = len(lines) * line_spacing
-    start_y = fy2 + ((height - fy2 - total_text_height) // 2) - 15
+    start_y = py2 + ((height - py2 - total_text_height) // 2) - 15
 
-    # رسم أسطر الآية مع ظل ناعم جداً يكاد لا يرى ليعطي عمقاً طبيعياً للمخطوطة
-    shadow_offset = (1, 1) if chosen_template != "nature" else (2, 2)
+    # رسم أسطر الآية الكريمة باللون البني الداكن (بدون ظلال سوداء مشوهة)
     for i, line in enumerate(lines):
         current_y = start_y + (i * line_spacing)
-        draw.text((width // 2 + shadow_offset[0], current_y + shadow_offset[1]), line, font=font_ayah, fill=shadow_color, anchor="mm")
-        draw.text((width // 2, current_y), line, font=font_ayah, fill=text_color, anchor="mm")
+        draw.text((width // 2, current_y), line, font=font_ayah, fill=dark_brown, anchor="mm")
 
-    # 4. رسم رقم الآية في الأسفل بشكل هادئ ومنعزل
-    ref_y = height - 75
-    draw.text((width // 2 + 1, ref_y + 1), ayah_data["ref"], font=font_ref, fill=shadow_color, anchor="mm")
-    draw.text((width // 2, ref_y), ayah_data["ref"], font=font_ref, fill=text_color, anchor="mm")
+    # 4. رسم رقم الآية في الأسفل (مثل شكل التشكيل الجانبي الصغير في المصاحف)
+    ref_y = height - 70
+    draw.text((width // 2, ref_y), ayah_data["ref"], font=font_ref, fill=(120, 100, 80, 255), anchor="mm")
 
     img_path = "/tmp/ayah_image.png"
     img.convert("RGB").save(img_path, "PNG", quality=95)
@@ -152,7 +133,7 @@ async def run():
             caption=caption,
             parse_mode="Markdown"
         )
-    print("تم توليد المخطوطة الإسلامية الفخمة بالخلفية البيج!")
+    print("تم توليد قالب المصحف الشريف بالبرواز المعتمد بنجاح!")
 
 if __name__ == "__main__":
     asyncio.run(run())
