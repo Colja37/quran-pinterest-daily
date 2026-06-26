@@ -44,21 +44,30 @@ def generate_background():
     response.raise_for_status()
     return io.BytesIO(response.content)
     
+# ---------------------------------------------------------
+# دالة إنشاء الصورة الجديدة كلياً - نظيفة واحترافية
+# ---------------------------------------------------------
 def generate_image(ayah_data):
-    # استخدام الأبعاد المثالية لـ Pinterest (نسبة 9:16) لظهور احترافي
+    # استخدام أبعاد الـ Pinterest الذهبية (نسبة 9:16) لظهور مثالي
     width, height = 1080, 1920
+    
+    # جلب صورة طبيعية عشوائية
     background_data = generate_background()
 
     img = Image.open(background_data).convert("RGBA")
+    # تغيير الحجم باستخدام أفضل خوارزمية جودة (LANCZOS)
     img = img.resize((width, height), Image.Resampling.LANCZOS)
     
-    # إضافة تعتيم سينمائي خفيف (Overlay) لضمان وضوح الخط الأبيض فوق أي صورة طبيعية
-    overlay = Image.new("RGBA", img.size, (0, 0, 0, 70)) # شفافية مدروسة بنسبة 27%
+    # 🌟 الإضافة السحرية: طبقة تعتيم سينمائي خفيفة (Overlay) 🌟
+    # هذه الطبقة السوداء الشفافة بنسبة 27% (70 من 255) 
+    # تضمن أن النص الأبيض واضح ومقروء تماماً مهما كانت الخلفية فاتحة أو مظلمة.
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 70)) 
     img = Image.alpha_composite(img, overlay)
     
     draw = ImageDraw.Draw(img)
 
     # تحميل الخطوط مع التعامل الذكي في حال عدم وجود الملف
+    # يفضل استخدام خطوط عربية حديثة تدعم التشكيل مثل Cairo-Medium أو Tajawal
     try:
         font_ayah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 75)
         font_ref = ImageFont.truetype("fonts/Amiri-Regular.ttf", 42)
@@ -66,14 +75,15 @@ def generate_image(ayah_data):
         font_ayah = ImageFont.load_default()
         font_ref = font_ayah
 
-    # تقسيم الآية لسطور بشكل متناسق ذكي
+    # 1. تنسيق الآية: تقسيم تلقائي لسطور متناسقة (Text Wrap)
+    # هذه الدالة تتكيف مع طول النص ليكون له هوامش مريحة
     words = ayah_data["text"].split()
     lines = []
     current = []
     for word in words:
         current.append(word)
         bbox = draw.textbbox((0, 0), " ".join(current), font=font_ayah)
-        # ترك مسافة أمان (Padding) على الأطراف لجمالية التصميم
+        # ترك هامش أمان جانبي كبير لجمالية التصميم
         if bbox[2] - bbox[0] > width - 180:
             current.pop()
             lines.append(" ".join(current))
@@ -81,34 +91,37 @@ def generate_image(ayah_data):
     if current:
         lines.append(" ".join(current))
 
-    # ضبط التباعد بين السطور وحساب نقطة البداية ليكون النص متمركزاً عمودياً تماماً
+    # 2. حساب موقع التمركز العمودي المثالي
     line_spacing = 115
-    total_height = len(lines) * line_spacing
-    start_y = (height - total_height) // 2 - 40 
+    total_text_height = len(lines) * line_spacing
+    start_y = (height - total_text_height) // 2 - 40 
 
-    # إعدادات الظل الناعم للنص (Drop Shadow) ليعطي طابع الحسابات الكبرى
+    # 3. إعدادات الظل الناعم للنص (Drop Shadow) لزيادة البروز
     shadow_offset = (3, 3)
-    shadow_color = (0, 0, 0, 200)
-    text_color = (255, 255, 255, 255)
+    shadow_color = (0, 0, 0, 200) # ظل أسود داكن ناعم
+    text_color = (255, 255, 255, 255) # نص أبيض ناصع
 
-    # رسم أسطر الآية (تعديل الخطأ السابق ورسم الـ line الفعلي)
+    # 4. رسم أسطر الآية (تعديل الخطأ السابق ورسم الـ line الفعلي)
     for i, line in enumerate(lines):
         current_y = start_y + (i * line_spacing)
         
-        # الظل خلف النص
+        # رسم الظل خلف النص (لزيادة الوضوح)
         draw.text((width // 2 + shadow_offset[0], current_y + shadow_offset[1]), line, font=font_ayah, fill=shadow_color, anchor="mm")
-        # النص الأساسي الأبيض
+        # رسم النص الأساسي الأبيض
         draw.text((width // 2, current_y), line, font=font_ayah, fill=text_color, anchor="mm")
 
-    # رسم المرجع (اسم السورة والآية) أسفل النص مباشرة بمسافة ثابتة وأنيقة
-    ref_y = start_y + total_height + 40
+    # 5. تنسيق ورسم المرجع بأسلوب احترافي وهادئ
+    # تم حذف التكرار "سورة سورة" وجعله "سورة نوح • آية 16"
+    reference_text = f"سورة {ayah_data['surah']} • آية {ayah_data['ayah']}"
+    ref_y = start_y + total_text_height + 40 # مسافة ثابتة أسفل الآية مباشرة
     
     # ظل المرجع
-    draw.text((width // 2 + 2, ref_y + 2), ayah_data["ref"], font=font_ref, fill=shadow_color, anchor="mm")
-    # نص المرجع بلون أبيض عاجي خفيف وجذاب
-    draw.text((width // 2, ref_y), ayah_data["ref"], font=font_ref, fill=(240, 240, 240, 255), anchor="mm")
+    draw.text((width // 2 + 2, ref_y + 2), reference_text, font=font_ref, fill=shadow_color, anchor="mm")
+    # نص المرجع بلون أبيض خافت قليلاً ومريح للعين
+    draw.text((width // 2, ref_y), reference_text, font=font_ref, fill=(240, 240, 240, 255), anchor="mm")
 
     img_path = "/tmp/ayah_image.png"
+    # الحفظ بجودة عالية
     img.convert("RGB").save(img_path, "PNG", quality=95)
     return img_path
 
