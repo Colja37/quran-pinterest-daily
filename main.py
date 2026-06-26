@@ -18,14 +18,18 @@ def fetch_random_ayah():
     ayah_num = random.randint(1, total_ayahs)
 
     r = requests.get(f"https://api.alquran.cloud/v1/ayah/{surah}:{ayah_num}/ar.alafasy")
-    arabic_text = r.json()["data"]["text"]
-    surah_name = r.json()["data"]["surah"]["name"]
+    res_data = r.json()["data"]
+    arabic_text = res_data["text"]
+    
+    # جلب اسم السورة وتصفيته من كلمة "سورة" لمنع التكرار
+    raw_surah_name = res_data["surah"]["name"]
+    surah_name = raw_surah_name.replace("سُورَةُ", "").replace("سورة", "").strip()
 
     return {
         "text": arabic_text,
         "surah": surah_name,
         "ayah": ayah_num,
-        "ref": f"سورة {surah_name} — آية {ayah_num}"
+        "ref": f"سورة {surah_name} • آية {ayah_num}"
     }
 
 def generate_background():
@@ -39,51 +43,38 @@ def generate_background():
 
     url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
     
-    # طلب الصورة مباشرة وتفادي الحفظ المؤقت لتسريع العملية وثبات الأبعاد
     response = requests.get(url, timeout=90)
     response.raise_for_status()
     return io.BytesIO(response.content)
     
-# ---------------------------------------------------------
-# دالة إنشاء الصورة الجديدة كلياً - نظيفة واحترافية
-# ---------------------------------------------------------
 def generate_image(ayah_data):
-    # استخدام أبعاد الـ Pinterest الذهبية (نسبة 9:16) لظهور مثالي
+    # أبعاد الـ Pinterest المثالية
     width, height = 1080, 1920
-    
-    # جلب صورة طبيعية عشوائية
     background_data = generate_background()
 
     img = Image.open(background_data).convert("RGBA")
-    # تغيير الحجم باستخدام أفضل خوارزمية جودة (LANCZOS)
     img = img.resize((width, height), Image.Resampling.LANCZOS)
     
-    # 🌟 الإضافة السحرية: طبقة تعتيم سينمائي خفيفة (Overlay) 🌟
-    # هذه الطبقة السوداء الشفافة بنسبة 27% (70 من 255) 
-    # تضمن أن النص الأبيض واضح ومقروء تماماً مهما كانت الخلفية فاتحة أو مظلمة.
-    overlay = Image.new("RGBA", img.size, (0, 0, 0, 70)) 
+    # طبقة تعتيم خفيفة جداً لإبراز الخط الأبيض
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 75)) 
     img = Image.alpha_composite(img, overlay)
     
     draw = ImageDraw.Draw(img)
 
-    # تحميل الخطوط مع التعامل الذكي في حال عدم وجود الملف
-    # يفضل استخدام خطوط عربية حديثة تدعم التشكيل مثل Cairo-Medium أو Tajawal
     try:
         font_ayah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 75)
-        font_ref = ImageFont.truetype("fonts/Amiri-Regular.ttf", 42)
+        font_ref = ImageFont.truetype("fonts/Amiri-Regular.ttf", 44)
     except:
         font_ayah = ImageFont.load_default()
         font_ref = font_ayah
 
-    # 1. تنسيق الآية: تقسيم تلقائي لسطور متناسقة (Text Wrap)
-    # هذه الدالة تتكيف مع طول النص ليكون له هوامش مريحة
+    # تقسيم الآية لسطور متناسقة
     words = ayah_data["text"].split()
     lines = []
     current = []
     for word in words:
         current.append(word)
         bbox = draw.textbbox((0, 0), " ".join(current), font=font_ayah)
-        # ترك هامش أمان جانبي كبير لجمالية التصميم
         if bbox[2] - bbox[0] > width - 180:
             current.pop()
             lines.append(" ".join(current))
@@ -91,37 +82,34 @@ def generate_image(ayah_data):
     if current:
         lines.append(" ".join(current))
 
-    # 2. حساب موقع التمركز العمودي المثالي
-    line_spacing = 115
+    # حساب التمركز العمودي في المنتصف تماماً
+    line_spacing = 120
     total_text_height = len(lines) * line_spacing
-    start_y = (height - total_text_height) // 2 - 40 
+    start_y = (height - total_text_height) // 2 - 50 
 
-    # 3. إعدادات الظل الناعم للنص (Drop Shadow) لزيادة البروز
+    # إعدادات الظل الناعم (Drop Shadow)
     shadow_offset = (3, 3)
-    shadow_color = (0, 0, 0, 200) # ظل أسود داكن ناعم
-    text_color = (255, 255, 255, 255) # نص أبيض ناصع
+    shadow_color = (0, 0, 0, 220)
+    text_color = (255, 255, 255, 255)
 
-    # 4. رسم أسطر الآية (تعديل الخطأ السابق ورسم الـ line الفعلي)
+    # رسم أسطر الآية الكريمة
     for i, line in enumerate(lines):
         current_y = start_y + (i * line_spacing)
         
-        # رسم الظل خلف النص (لزيادة الوضوح)
+        # الظل
         draw.text((width // 2 + shadow_offset[0], current_y + shadow_offset[1]), line, font=font_ayah, fill=shadow_color, anchor="mm")
-        # رسم النص الأساسي الأبيض
+        # النص الأساسي
         draw.text((width // 2, current_y), line, font=font_ayah, fill=text_color, anchor="mm")
 
-    # 5. تنسيق ورسم المرجع بأسلوب احترافي وهادئ
-    # تم حذف التكرار "سورة سورة" وجعله "سورة نوح • آية 16"
-    reference_text = f"سورة {ayah_data['surah']} • آية {ayah_data['ayah']}"
-    ref_y = start_y + total_text_height + 40 # مسافة ثابتة أسفل الآية مباشرة
+    # رسم المرجع الموحد والمنقح أسفل الآية مباشرة
+    ref_y = start_y + total_text_height + 30
     
     # ظل المرجع
-    draw.text((width // 2 + 2, ref_y + 2), reference_text, font=font_ref, fill=shadow_color, anchor="mm")
-    # نص المرجع بلون أبيض خافت قليلاً ومريح للعين
-    draw.text((width // 2, ref_y), reference_text, font=font_ref, fill=(240, 240, 240, 255), anchor="mm")
+    draw.text((width // 2 + 2, ref_y + 2), ayah_data["ref"], font=font_ref, fill=shadow_color, anchor="mm")
+    # نص المرجع
+    draw.text((width // 2, ref_y), ayah_data["ref"], font=font_ref, fill=(245, 245, 245, 255), anchor="mm")
 
     img_path = "/tmp/ayah_image.png"
-    # الحفظ بجودة عالية
     img.convert("RGB").save(img_path, "PNG", quality=95)
     return img_path
 
@@ -152,7 +140,7 @@ async def run():
             parse_mode="Markdown"
         )
 
-    print("تم الإرسال بنجاح")
+    print("تم الإرسال بنجاح وتفادي تكرار الاسم!")
 
 if __name__ == "__main__":
     asyncio.run(run())
