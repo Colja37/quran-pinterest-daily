@@ -58,7 +58,7 @@ def generate_image(ayah_data):
         font_ayah = ImageFont.load_default()
         font_ref = font_ayah
 
-    # اللون البني الداكن القرآني الفخم (تم اعتماده للآية والمرجع معاً لزيادة الوضوح)
+    # اللون البني الداكن القرآني الفخم للآية والمرجع معاً لزيادة الوضوح
     quran_brown = (55, 40, 25, 255)
 
     # 1. تقسيم الآية الكريمة إلى سطور بشكل آمن وثابت
@@ -103,9 +103,18 @@ async def run():
 
     bot = Bot(token=TELEGRAM_TOKEN)
 
+    # 🌟 الكابشن الاحترافي مع الهاشتاقات المخصصة لـ Pinterest 🌟
     caption = (
         f"🌙 *{ayah_data['ref']}*\n\n"
-        f"{ayah_data['text']}\n"
+        f"{ayah_data['text']}\n\n"
+        f"─────────────────\n"
+        f"📌 *للنشر على Pinterest:*\n"
+        f"١. حمّل الصورة\n"
+        f"٢. ارفعها على Pinterest\n"
+        f"٣. استخدم هذا الوصف:\n\n"
+        f"_{ayah_data['text']}_\n"
+        f"_{ayah_data['ref']}_\n\n"
+        f"#قرآن #آية_اليوم #إسلام #ذكر #قرآن_كريم #Pinterest"
     )
 
     with open(img_path, "rb") as photo:
@@ -115,7 +124,7 @@ async def run():
             caption=caption,
             parse_mode="Markdown"
         )
-    print("تم توليد التصميم وإرساله بنجاح تام!")
+    print("تم توليد التصميم وإرساله مع الكابشن والهاشتاقات بنجاح!")
 
 if __name__ == "__main__":
     asyncio.run(run())
