@@ -4,8 +4,8 @@ import random
 import urllib.parse
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import asyncio
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Application, CallbackQueryHandler, ContextTypes
+import io
+from telegram import Bot
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
@@ -29,106 +29,87 @@ def fetch_random_ayah():
     }
 
 def generate_background():
-    places = [
-        "mountains",
-        "lake",
-        "forest",
-        "waterfall",
-        "green valley"
-    ]
-
-    times = [
-        "sunrise",
-        "golden hour",
-        "misty morning",
-        "sunset"
-    ]
+    places = ["mountains", "lake", "forest", "waterfall", "green valley"]
+    times = ["sunrise", "golden hour", "misty morning", "sunset"]
 
     prompt = (
-        f"A beautiful {random.choice(places)} during "
-        f"{random.choice(times)}, "
-        "photorealistic, peaceful, soft light, "
-        "no people, no buildings, no text, portrait"
+        f"A beautiful {random.choice(places)} during {random.choice(times)}, "
+        "photorealistic, peaceful, soft light, no people, no buildings, no text, portrait"
     )
 
     url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
-
+    
+    # طلب الصورة مباشرة وتفادي الحفظ المؤقت لتسريع العملية وثبات الأبعاد
     response = requests.get(url, timeout=90)
     response.raise_for_status()
-
-    path = "/tmp/background.jpg"
-
-    with open(path, "wb") as f:
-        f.write(response.content)
-
-    return path
+    return io.BytesIO(response.content)
     
 def generate_image(ayah_data):
-    width, height = 1000, 1500
-    background = generate_background()
+    # استخدام الأبعاد المثالية لـ Pinterest (نسبة 9:16) لظهور احترافي
+    width, height = 1080, 1920
+    background_data = generate_background()
 
-    img = Image.open(background).convert("RGB")
-    img = img.resize((width, height))
+    img = Image.open(background_data).convert("RGBA")
+    img = img.resize((width, height), Image.Resampling.LANCZOS)
+    
+    # إضافة تعتيم سينمائي خفيف (Overlay) لضمان وضوح الخط الأبيض فوق أي صورة طبيعية
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 70)) # شفافية مدروسة بنسبة 27%
+    img = Image.alpha_composite(img, overlay)
     
     draw = ImageDraw.Draw(img)
 
-    # تحويل الصورة إلى RGBA لدعم الشفافية
-    
-  
-
+    # تحميل الخطوط مع التعامل الذكي في حال عدم وجود الملف
     try:
-        font_ayah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 80)
-        font_ref = ImageFont.truetype("fonts/Amiri-Regular.ttf", 44)
+        font_ayah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 75)
+        font_ref = ImageFont.truetype("fonts/Amiri-Regular.ttf", 42)
     except:
         font_ayah = ImageFont.load_default()
         font_ref = font_ayah
 
-    # تقسيم الآية لسطور
+    # تقسيم الآية لسطور بشكل متناسق ذكي
     words = ayah_data["text"].split()
     lines = []
     current = []
     for word in words:
         current.append(word)
         bbox = draw.textbbox((0, 0), " ".join(current), font=font_ayah)
-        if bbox[2] - bbox[0] > width - 160:
+        # ترك مسافة أمان (Padding) على الأطراف لجمالية التصميم
+        if bbox[2] - bbox[0] > width - 180:
             current.pop()
             lines.append(" ".join(current))
             current = [word]
     if current:
         lines.append(" ".join(current))
 
-    # توسيط الآية عمودياً
-    total_height = len(lines) * 110
-    y = (height - total_height) // 2 - 60
+    # ضبط التباعد بين السطور وحساب نقطة البداية ليكون النص متمركزاً عمودياً تماماً
+    line_spacing = 115
+    total_height = len(lines) * line_spacing
+    start_y = (height - total_height) // 2 - 40 
 
-    for line in lines:
-    # Shadow
-    ref_y = y + 40
+    # إعدادات الظل الناعم للنص (Drop Shadow) ليعطي طابع الحسابات الكبرى
+    shadow_offset = (3, 3)
+    shadow_color = (0, 0, 0, 200)
+    text_color = (255, 255, 255, 255)
 
-    draw.text(
-        (width // 2 + 2, ref_y + 2),
-        ayah_data["ref"],
-        font=font_ref,
-        fill="black",
-        anchor="mm"
-    )
+    # رسم أسطر الآية (تعديل الخطأ السابق ورسم الـ line الفعلي)
+    for i, line in enumerate(lines):
+        current_y = start_y + (i * line_spacing)
+        
+        # الظل خلف النص
+        draw.text((width // 2 + shadow_offset[0], current_y + shadow_offset[1]), line, font=font_ayah, fill=shadow_color, anchor="mm")
+        # النص الأساسي الأبيض
+        draw.text((width // 2, current_y), line, font=font_ayah, fill=text_color, anchor="mm")
+
+    # رسم المرجع (اسم السورة والآية) أسفل النص مباشرة بمسافة ثابتة وأنيقة
+    ref_y = start_y + total_height + 40
     
-    draw.text(
-        (width // 2, ref_y),
-        ayah_data["ref"],
-        font=font_ref,
-        fill="white",
-        anchor="mm"
-    )
-
-    y += 110
-
-    # اسم السورة في الأسفل
-    draw.text((width // 2, height - 180), ayah_data["ref"],
-              font=font_ref, fill="white", anchor="mm")
+    # ظل المرجع
+    draw.text((width // 2 + 2, ref_y + 2), ayah_data["ref"], font=font_ref, fill=shadow_color, anchor="mm")
+    # نص المرجع بلون أبيض عاجي خفيف وجذاب
+    draw.text((width // 2, ref_y), ayah_data["ref"], font=font_ref, fill=(240, 240, 240, 255), anchor="mm")
 
     img_path = "/tmp/ayah_image.png"
-    img.convert("RGB").save(img_path)
+    img.convert("RGB").save(img_path, "PNG", quality=95)
     return img_path
 
 async def run():
@@ -162,6 +143,3 @@ async def run():
 
 if __name__ == "__main__":
     asyncio.run(run())
-
-
-
