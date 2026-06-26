@@ -1,9 +1,9 @@
 name: Daily Quran Post
 
 on:
-  schedule:
-   - cron: '35 16 * * *'
-  workflow_dispatch:
+  repository_dispatch:
+    types: [run_quran_bot] # هذا النوع الذي ستستدعيه من موقع cron-job
+  workflow_dispatch: # تتركها لتشغيل السكربت يدوياً من موقع جيتهب للتجربة في أي وقت
 
 jobs:
   post:
@@ -25,6 +25,7 @@ jobs:
         run: |
           mkdir -p fonts
           curl -L "https://github.com/google/fonts/raw/main/ofl/amiri/Amiri-Regular.ttf" -o fonts/Amiri-Regular.ttf
+
       - name: Run bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
