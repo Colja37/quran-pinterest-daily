@@ -73,9 +73,7 @@ def generate_image(ayah_data):
     draw = ImageDraw.Draw(img)
 
     # تحويل الصورة إلى RGBA لدعم الشفافية
-    img = img.convert("RGBA")
-    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    overlay_draw = ImageDraw.Draw(overlay)
+    
   
 
     try:
@@ -101,31 +99,29 @@ def generate_image(ayah_data):
 
     # توسيط الآية عمودياً
     total_height = len(lines) * 110
-    box_margin = 50
-
-    box_top = (height - total_height) // 2 - 120
-    box_bottom = box_top + total_height + 170
-    
-    overlay_draw.rounded_rectangle(
-        (
-            70,
-            box_top,
-            width - 70,
-            box_bottom
-        ),
-        radius=35,
-        fill=(0, 0, 0, 110)
-    )
-    
-    # دمج المستطيل مع الصورة
-    img = Image.alpha_composite(img, overlay)
-    draw = ImageDraw.Draw(img)
     y = (height - total_height) // 2 - 60
 
     for line in lines:
-        draw.text((width // 2, y), line,
-                  font=font_ayah, fill="white", anchor="mm")
-        y += 110
+    # Shadow
+    ref_y = y + 40
+
+    draw.text(
+        (width // 2 + 2, ref_y + 2),
+        ayah_data["ref"],
+        font=font_ref,
+        fill="black",
+        anchor="mm"
+    )
+    
+    draw.text(
+        (width // 2, ref_y),
+        ayah_data["ref"],
+        font=font_ref,
+        fill="white",
+        anchor="mm"
+    )
+
+    y += 110
 
     # اسم السورة في الأسفل
     draw.text((width // 2, height - 180), ayah_data["ref"],
