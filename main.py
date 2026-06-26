@@ -1,7 +1,8 @@
 import os
 import requests
 import random
-from PIL import Image, ImageDraw, ImageFont
+import urllib.parse
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import asyncio
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes
@@ -27,10 +28,55 @@ def fetch_random_ayah():
         "ref": f"سورة {surah_name} — آية {ayah_num}"
     }
 
+def generate_background():
+    places = [
+        "mountains",
+        "lake",
+        "forest",
+        "waterfall",
+        "green valley"
+    ]
+
+    times = [
+        "sunrise",
+        "golden hour",
+        "misty morning",
+        "sunset"
+    ]
+
+    prompt = (
+        f"A beautiful {random.choice(places)} during "
+        f"{random.choice(times)}, "
+        "photorealistic, peaceful, soft light, "
+        "no people, no buildings, no text, portrait"
+    )
+
+    url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
+
+    response = requests.get(url, timeout=90)
+    response.raise_for_status()
+
+    path = "/tmp/background.jpg"
+
+    with open(path, "wb") as f:
+        f.write(response.content)
+
+    return path
+    
 def generate_image(ayah_data):
     width, height = 1000, 1500
-    img = Image.new("RGB", (width, height), color="#ffffff")
+    background = generate_background()
+
+    img = Image.open(background).convert("RGB")
+    img = img.resize((width, height))
+    
     draw = ImageDraw.Draw(img)
+
+    # تحويل الصورة إلى RGBA لدعم الشفافية
+    img = img.convert("RGBA")
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+  
 
     try:
         font_ayah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 80)
@@ -55,19 +101,38 @@ def generate_image(ayah_data):
 
     # توسيط الآية عمودياً
     total_height = len(lines) * 110
+    box_margin = 50
+
+    box_top = (height - total_height) // 2 - 120
+    box_bottom = box_top + total_height + 170
+    
+    overlay_draw.rounded_rectangle(
+        (
+            70,
+            box_top,
+            width - 70,
+            box_bottom
+        ),
+        radius=35,
+        fill=(0, 0, 0, 110)
+    )
+    
+    # دمج المستطيل مع الصورة
+    img = Image.alpha_composite(img, overlay)
+    draw = ImageDraw.Draw(img)
     y = (height - total_height) // 2 - 60
 
     for line in lines:
         draw.text((width // 2, y), line,
-                  font=font_ayah, fill="#000000", anchor="mm")
+                  font=font_ayah, fill="white", anchor="mm")
         y += 110
 
     # اسم السورة في الأسفل
     draw.text((width // 2, height - 180), ayah_data["ref"],
-              font=font_ref, fill="#000000", anchor="mm")
+              font=font_ref, fill="white", anchor="mm")
 
     img_path = "/tmp/ayah_image.png"
-    img.save(img_path)
+    img.convert("RGB").save(img_path)
     return img_path
 
 async def run():
@@ -101,3 +166,6 @@ async def run():
 
 if __name__ == "__main__":
     asyncio.run(run())
+
+
+
