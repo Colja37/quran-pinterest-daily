@@ -29,49 +29,42 @@ def fetch_random_ayah():
 
 def generate_image(ayah_data):
     width, height = 1000, 1500
-    img = Image.new("RGB", (width, height), color="#1a1a2e")
+    img = Image.new("RGB", (width, height), color="#ffffff")
     draw = ImageDraw.Draw(img)
 
-    draw.rectangle([40, 40, width-40, height-40], outline="#c9a84c", width=3)
-    draw.rectangle([55, 55, width-55, height-55], outline="#c9a84c", width=1)
-
     try:
-        font_big = ImageFont.truetype("fonts/Amiri-Regular.ttf", 72)
-        font_small = ImageFont.truetype("fonts/Amiri-Regular.ttf", 42)
-        font_ref = ImageFont.truetype("fonts/Amiri-Regular.ttf", 36)
+        font_ayah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 80)
+        font_ref = ImageFont.truetype("fonts/Amiri-Regular.ttf", 44)
     except:
-        font_big = ImageFont.load_default()
-        font_small = font_big
-        font_ref = font_big
+        font_ayah = ImageFont.load_default()
+        font_ref = font_ayah
 
-    draw.text((width//2, 150), "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-              font=font_small, fill="#c9a84c", anchor="mm")
-    draw.line([(150, 220), (850, 220)], fill="#c9a84c", width=1)
-
+    # تقسيم الآية لسطور
     words = ayah_data["text"].split()
     lines = []
     current = []
     for word in words:
         current.append(word)
-        bbox = draw.textbbox((0, 0), " ".join(current), font=font_big)
-        if bbox[2] - bbox[0] > width - 200:
+        bbox = draw.textbbox((0, 0), " ".join(current), font=font_ayah)
+        if bbox[2] - bbox[0] > width - 160:
             current.pop()
             lines.append(" ".join(current))
             current = [word]
     if current:
         lines.append(" ".join(current))
 
-    y_start = (height - len(lines) * 100) // 2 - 50
-    for line in lines:
-        draw.text((width//2, y_start), line,
-                  font=font_big, fill="#ffffff", anchor="mm")
-        y_start += 100
+    # توسيط الآية عمودياً
+    total_height = len(lines) * 110
+    y = (height - total_height) // 2 - 60
 
-    draw.line([(150, height-280), (850, height-280)], fill="#c9a84c", width=1)
-    draw.text((width//2, height-200), ayah_data["ref"],
-              font=font_ref, fill="#c9a84c", anchor="mm")
-    draw.text((width//2, height-120), "✦ آية اليوم ✦",
-              font=font_ref, fill="#c9a84c", anchor="mm")
+    for line in lines:
+        draw.text((width // 2, y), line,
+                  font=font_ayah, fill="#000000", anchor="mm")
+        y += 110
+
+    # اسم السورة في الأسفل
+    draw.text((width // 2, height - 180), ayah_data["ref"],
+              font=font_ref, fill="#000000", anchor="mm")
 
     img_path = "/tmp/ayah_image.png"
     img.save(img_path)
