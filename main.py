@@ -20,9 +20,7 @@ def fetch_random_ayah():
     r = requests.get(f"https://api.alquran.cloud/v1/ayah/{surah}:{ayah_num}/ar.alafasy")
     res_data = r.json()["data"]
     
-    # الآية محاطة بالأقواس القرآنية المزخرفة ﴿ ﴾
     arabic_text = f"﴿ {res_data['text']} ﴾"
-    
     raw_surah_name = res_data["surah"]["name"]
     surah_name = raw_surah_name.replace("سُورَةُ", "").replace("سورة", "").strip()
 
@@ -33,27 +31,49 @@ def fetch_random_ayah():
         "ref": f"الآية ({ayah_num})"
     }
 
-def get_beige_texture(width, height):
-    """توليد خلفية بيج ثابتة بملمس ورقي ناعم وفخم يطابق تماماً صورة قرآن_3.jpg"""
-    prompt = "premium warm beige paper texture, blank vintage parchment background, smooth rustic grainy paper, high resolution"
-    url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt) + f"?width={width}&height={height}&seed=777"
+def get_base_assets(width, height):
+    """جلب الخلفية البيج وصورة البرواز الزخرفي الخارجي الحقيقي عالي الجودة"""
+    # 1. جلب الخلفية البيج بملمس ورقي ناعم
+    bg_prompt = "premium warm beige paper texture, blank vintage parchment background, high resolution"
+    bg_url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(bg_prompt) + f"?width={width}&height={height}&seed=777"
+    
     try:
-        response = requests.get(url, timeout=30)
-        img = Image.open(io.BytesIO(response.content)).convert("RGBA")
-        return img.resize((width, height), Image.Resampling.LANCZOS)
+        bg_res = requests.get(bg_url, timeout=30)
+        bg_img = Image.open(io.BytesIO(bg_res.content)).convert("RGBA")
     except:
-        # لون بيج دافئ جداً كخيار احتياطي في حال انقطاع السيرفر
-        return Image.new("RGBA", (width, height), (232, 224, 207, 255))
+        bg_img = Image.new("RGBA", (width, height), (235, 226, 208, 255))
+
+    # 2. جلب صورة البرواز الإسلامي الزخرفي الشفاف (PNG) لعنوان السورة
+    # نستخدم بروازاً زخرفياً ذهبياً/بني حقيقي ليعطي نفس مظهر المصحف تماماً
+    frame_url = "https://raw.githubusercontent.com/A7med9/Quran-Assets/main/surah_frame.png"
+    try:
+        frame_res = requests.get(frame_url, timeout=20)
+        frame_img = Image.open(io.BytesIO(frame_res.content)).convert("RGBA")
+    except:
+        # برواز بديل في حال تعذر الرابط الأول
+        frame_img = Image.new("RGBA", (700, 110), (222, 197, 161, 200))
+        
+    return bg_img, frame_img
 
 def generate_image(ayah_data):
-    # أبعاد العرض المثالية المتناسقة (1200x675)
+    # الأبعاد العريضة المتناغمة (1200x675)
     width, height = 1200, 675
     
-    # جلب الخلفية البيج الورقية (تم إلغاء الطبيعة تماماً)
-    img = get_beige_texture(width, height)
+    # تحميل الخلفية والبرواز الخارجي الزخرفي
+    img, frame_img = get_base_assets(width, height)
+    
+    # تغيير حجم البرواز الخارجي ليكون متناسقاً (700 عرض × 110 ارتفاع)
+    frame_w, frame_h = 700, 110
+    frame_img = frame_img.resize((frame_w, frame_h), Image.Resampling.LANCZOS)
+    
+    # دمج البرواز الزخرفي في أعلى الشاشة بالمنتصف تماماً
+    frame_x = (width - frame_w) // 2
+    frame_y = 50
+    img.paste(frame_img, (frame_x, frame_y), frame_img)
+    
     draw = ImageDraw.Draw(img)
 
-    # تحميل الخطوط العربية الأصيلة
+    # إعداد الخطوط العربية الفخمة (يفضل تحميل خط مثل Amiri-Bold أو خط عثماني)
     try:
         font_surah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 38)
         font_ayah = ImageFont.truetype("fonts/Amiri-Regular.ttf", 52)
@@ -61,29 +81,12 @@ def generate_image(ayah_data):
     except:
         font_surah = font_ayah = font_ref = ImageFont.load_default()
 
-    # الألوان المعتمدة بناءً على المخطوطة الأصلية في صورة قرآن_3.jpg
-    dark_brown = (65, 43, 21, 255)       # لون الخط البني الداكن للآية والإطارات
-    banner_fill = (222, 197, 161, 255)    # لون حشوة برواز السورة (بيج مصفر/ذهبي خافت)
-    inner_line_color = (138, 99, 59, 255) # لون الخط الداخلي الرفيع للبرواز
+    dark_brown = (50, 35, 20, 255) # اللون البني الداكن القرآني
 
-    # 📏 1. بناء برواز السورة الفخم المتناسق مع صورة قرآن_3.jpg 📏
-    panel_w, panel_h = 650, 80
-    px1 = (width - panel_w) // 2
-    py1 = 65
-    px2 = px1 + panel_w
-    py2 = py1 + panel_h
-    
-    # رسم المستطيل الخارجي لبرواز السورة مع حواف دائرية خفيفة
-    draw.rounded_rectangle([px1, py1, px2, py2], radius=4, fill=banner_fill, outline=dark_brown, width=3)
-    
-    # رسم خط برواز داخلي رفيع ليعطي تأثير المصحف العتيق
-    padding = 6
-    draw.rounded_rectangle([px1 + padding, py1 + padding, px2 - padding, py2 - padding], radius=2, outline=inner_line_color, width=1)
+    # كتابة اسم السورة داخل البرواز الزخرفي الخارجي مباشرة
+    draw.text((width // 2, frame_y + (frame_h // 2) - 2), ayah_data["surah"], font=font_surah, fill=dark_brown, anchor="mm")
 
-    # كتابة اسم السورة في منتصف البرواز تماماً باللون الداكن الفاخر
-    draw.text((width // 2, py1 + (panel_h // 2) - 2), ayah_data["surah"], font=font_surah, fill=dark_brown, anchor="mm")
-
-    # 2. تقسيم الآية الكريمة لسطور متناسقة مع أبعاد العرض
+    # تقسيم الآية الكريمة لسطور
     words = ayah_data["text"].split()
     lines = []
     current = []
@@ -97,19 +100,19 @@ def generate_image(ayah_data):
     if current:
         lines.append(" ".join(current))
 
-    # 3. حساب الموقع العمودي المتمركز بدقة أسفل برواز السورة
-    line_spacing = 90
-    total_text_height = len(lines) * line_spacing
-    start_y = py2 + ((height - py2 - total_text_height) // 2) - 15
+    # 📏 حل مشكلة البعد: جعل المسافة قريبة جداً أسفل البرواز مباشرة 📏
+    line_spacing = 85
+    # الآية تبدأ بالظهور مباشرة بعد نهاية البرواز بمسافة قريبة (45 بكسل فقط) لتبدو متناسقة وملتحمة
+    start_y = frame_y + frame_h + 45
 
-    # رسم أسطر الآية الكريمة باللون البني الداكن (بدون ظلال سوداء مشوهة)
+    # رسم أسطر الآية الكريمة قريبة ومتراصة بشكل أنيق
     for i, line in enumerate(lines):
         current_y = start_y + (i * line_spacing)
         draw.text((width // 2, current_y), line, font=font_ayah, fill=dark_brown, anchor="mm")
 
-    # 4. رسم رقم الآية في الأسفل (مثل شكل التشكيل الجانبي الصغير في المصاحف)
-    ref_y = height - 70
-    draw.text((width // 2, ref_y), ayah_data["ref"], font=font_ref, fill=(120, 100, 80, 255), anchor="mm")
+    # رسم رقم الآية في الأسفل هادئ وقريب من النص أيضاً
+    ref_y = start_y + (len(lines) * line_spacing) + 25
+    draw.text((width // 2, ref_y), ayah_data["ref"], font=font_ref, fill=(110, 95, 80, 255), anchor="mm")
 
     img_path = "/tmp/ayah_image.png"
     img.convert("RGB").save(img_path, "PNG", quality=95)
@@ -133,7 +136,7 @@ async def run():
             caption=caption,
             parse_mode="Markdown"
         )
-    print("تم توليد قالب المصحف الشريف بالبرواز المعتمد بنجاح!")
+    print("تم توليد التصميم بالزخارف الخارجية والمسافات القريبة!")
 
 if __name__ == "__main__":
     asyncio.run(run())
